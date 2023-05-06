@@ -1,0 +1,9 @@
+#+TITLE: The Reasoned Schemer
+
+* =core.logic=, not scheme
+
+Remember that we're using core.logic instead of whatever scheme the book uses. Keep the following differences in mind: https://github.com/clojure/core.logic/wiki/Differences-from-The-Reasoned-Schemer
+
+* Chapter 1. Playthings
+
+
