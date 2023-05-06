@@ -4,6 +4,137 @@
 
 Remember that we're using core.logic instead of whatever scheme the book uses. Keep the following differences in mind: https://github.com/clojure/core.logic/wiki/Differences-from-The-Reasoned-Schemer
 
+* Preamble
+Remember to load core-logic
+
+#+begin_src clojure :results silent
+  (require '[clojure.core.logic :refer [run* u# s# == fresh]])
+#+end_src
+
 * Chapter 1. Playthings
 
+** Frame 7
+- ~u#~ :: A goal that can never be met
+- ~s#~ :: A goal that is always met
 
+#+begin_src clojure :results pp
+  (run* [q] u#)
+#+end_src
+
+#+RESULTS:
+: ()
+: 
+
+** Frame 10
+- ~==~ :: Succeed if the first value is the same as the second
+
+    Note that this is a goal; it succeeds or it does not.
+
+#+BEGIN_SRC clojure :results pp
+  (run* [q] (== 'pea 'pod))
+#+END_SRC
+
+#+RESULTS:
+: ()
+: 
+
+** Frame 11
+#+BEGIN_SRC clojure :results pp
+  (run* [q] (== q 'pea))
+#+END_SRC
+
+#+RESULTS:
+: (pea)
+: 
+
+We return a list containing =pea= because that's a value of q which would be equivalent to =pea=
+
+** What do I think =run*= is?
+Return a list of all possible values of [input variables] that would result in the supplied body of goals succeeding.
+
+* The First Law of ≡
+
+(≡ v w) can be replaced by (≡ w v).
+
+** value associated with
+
+- what is the value of :: returns the output of =run*=
+- what is the value associated with :: returns the contents of =run*= without that outer list.
+
+
+We do this to remove that outer list which we often don't care about.
+
+** frame 15 (non-freshness)
+
+A variable stops being fresh when we assign it a value to make goals succeed.
+
+For example, in =(run* [q] (== q 'pea))=, =q= stops being fresh because we end up assigning th evalue ='pea= to it.
+
+** frame 16 (freshness)
+A variable remains fresh if we never assign it a value.
+
+For example, in =(run* [q] s#)=, =q= remains fresh because there is no specific value that makes =s#= succeed, since =s#= *always* succeeds.
+
+** freshness quote
+
+"Every variable is initially fresh. A variable is no longer fresh if it becomes associated with a non-variable value or if it becomes
+associated with a variable that, itself, is no longer fresh."
+
+So I guess if variable =q= is set to equal =p=, we need to figure out what =p= is before knowing if =q= is fresh or not.
+
+** Frame 18, 19, 20
+
+#+BEGIN_SRC clojure :results pp
+  (run* [q] s#)
+#+END_SRC
+
+#+RESULTS:
+: (_0)
+: 
+
+#+BEGIN_SRC clojure :results pp
+  (run* [q] (== 'pea 'pea))
+#+END_SRC
+
+#+RESULTS:
+: (_0)
+: 
+
+#+BEGIN_SRC clojure :results pp
+  (run* [q] (== q q))
+#+END_SRC
+
+#+RESULTS:
+: (_0)
+: 
+
+=(_0)= means that =q= remains fresh. In this book's lingo it means that the variable was *reified*
+
+** Frame 23
+
+We can use =(fresh)= to introduce new variables other than the one whose values we care about
+
+#+BEGIN_SRC clojure :results pp
+    (run* [q]
+      (fresh [x]
+	(== 'pea q)))
+#+END_SRC
+
+#+RESULTS:
+: (pea)
+: 
+
+See how we don't care about =x=, but it remains fresh above. =q= in this case gets assigned the value ='pea= to make the goal succeed.
+
+** Frame 24
+#+BEGIN_SRC clojure :results pp
+    (run* [q]
+      (fresh [x]
+	(== 'pea x)))
+#+END_SRC
+
+#+RESULTS:
+: (_0)
+: 
+
+In this case, while =x= get associated with ='pea= to make the goal succeed, but =q= remains fresh as its value is irrelevant for the success of any goals.
