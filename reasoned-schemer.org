@@ -5,14 +5,13 @@
 Remember that we're using core.logic instead of whatever scheme the book uses. Keep the following differences in mind: https://github.com/clojure/core.logic/wiki/Differences-from-The-Reasoned-Schemer
 
 * Preamble
-Remember to load core-logic
+Remember to load core.logic
 
 #+begin_src clojure :results silent
-  (require '[clojure.core.logic :refer [run* u# s# == fresh]])
+  (require '[clojure.core.logic :refer [run* u# s# == fresh conde]])
 #+end_src
 
 * Chapter 1. Playthings
-
 ** Frame 7
 - ~u#~ :: A goal that can never be met
 - ~s#~ :: A goal that is always met
@@ -52,7 +51,7 @@ We return a list containing =pea= because that's a value of q which would be equ
 ** What do I think =run*= is?
 Return a list of all possible values of [input variables] that would result in the supplied body of goals succeeding.
 
-* The First Law of ≡
+** The First Law of ≡
 
 (≡ v w) can be replaced by (≡ w v).
 
@@ -115,9 +114,9 @@ So I guess if variable =q= is set to equal =p=, we need to figure out what =p= i
 We can use =(fresh)= to introduce new variables other than the one whose values we care about
 
 #+BEGIN_SRC clojure :results pp
-    (run* [q]
-      (fresh [x]
-	(== 'pea q)))
+  (run* [q]
+    (fresh [x]
+      (== 'pea q)))
 #+END_SRC
 
 #+RESULTS:
@@ -128,9 +127,9 @@ See how we don't care about =x=, but it remains fresh above. =q= in this case ge
 
 ** Frame 24
 #+BEGIN_SRC clojure :results pp
-    (run* [q]
-      (fresh [x]
-	(== 'pea x)))
+  (run* [q]
+    (fresh [x]
+      (== 'pea x)))
 #+END_SRC
 
 #+RESULTS:
@@ -138,3 +137,355 @@ See how we don't care about =x=, but it remains fresh above. =q= in this case ge
 : 
 
 In this case, while =x= get associated with ='pea= to make the goal succeed, but =q= remains fresh as its value is irrelevant for the success of any goals.
+
+** Frame 25
+
+#+BEGIN_SRC clojure :results pp
+  (run* [q]
+    (fresh [x]
+      (== (cons x '()) q)))
+#+END_SRC
+
+#+RESULTS:
+: ((_0))
+: 
+
+Note they asked us for the /value associated with/, not the value. This means the book prints only the inner list.
+
+While =q= equals ~(x)~ in this case, =x= is never assigned a value so it gets reified as =_0=.
+
+** Frame 26
+
+Apparently I can't quasiquote in core.logic, I have to break things into lists and symbols.
+
+#+BEGIN_SRC clojure :results pp
+  (run* [q]
+    (fresh [x]
+      (== (list x) q)))
+#+END_SRC
+
+#+RESULTS:
+: ((_0))
+: 
+
+This is the same as Frame 25 but showing that quasiquotes can be used instead of explicitly consing values together.
+
+** Frame 29
+
+We can use ~(== a b)~ to say that the fresh variable a is the same as the fresh variable b. This is called *fusing*.
+
+** Frame 33
+#+BEGIN_SRC clojure :results pp
+  (run* [q]
+    (== (list (list (list 'pea)) 'pod) (list (list (list 'pea)) q)))
+#+END_SRC
+
+#+RESULTS:
+: (pod)
+: 
+
+In order to make this goal succeed, =q= as to be =pod=
+
+** Frame 35
+#+BEGIN_SRC clojure :results pp
+  (run* [q]
+    (fresh [x]
+      (== (list (list (list q)) 'pod) (list (list (list x)) 'pod))))
+#+END_SRC
+
+#+RESULTS:
+: (_0)
+: 
+
+In this case =q= and =x= fuse together and have the same value every time this goal succeeds, but we never need to assign q/x a value because any value will do. They remain fresh.
+** Frame 36
+#+BEGIN_SRC clojure :results pp
+  (run* [q]
+    (fresh [x]
+      (== (list (list (list q)) x) (list (list (list x)) 'pod))))
+#+END_SRC
+
+#+RESULTS:
+: (pod)
+: 
+
+Because these two lists are structurally the same, we know that the =pod= in the last list's last position maps to the =x= in the first lists' last position. And this means that the =x= in the last list's first position is =pod=, and since =q= structunrally maps to =x= (i.e. =q= is fused with =x=), we know that it too is =pod=. And thus, =pod= is associated to the variable =q=.
+
+** Frame 37
+#+BEGIN_SRC clojure :results pp
+  (run* [q]
+    (fresh [x]
+      (== (list x x) q)))
+#+END_SRC
+
+#+RESULTS:
+: ((_0 _0))
+: 
+
+We see that ~q~ is ~(x x)~, but we don't assign any variable to =x=, so we see that =q= is a pair of =x= values, reified as =(_0 _0)=. I don't know whether this means that =q= is fresh or not; it has a clear structure so therefore isn't entirely undefined, but contains fresh subcomponents.
+** Realization about reified variables.
+Fresh variables are possibly only reified when I print the result because I need to represent the fresh variables _somehow_, so the reification assigns the variable a value that isn't valid for computation but makes sense in the context of representing the expression. The variable still however doesn't have any value if it was to be used in other computations (if that's even possible.)
+
+** Frame 38
+#+BEGIN_SRC clojure :results pp
+  (run* [q]
+    (fresh [x]
+      (fresh [y]
+	(== (list q y) (list (list x y) x)))))
+#+END_SRC
+
+#+RESULTS:
+: ((_0 _0))
+: 
+
+Basically plug values int oeach other, and at the end, =x= is fused to =y= and =q= shows itself to be =(x y)= which basically means =(x x)= or =(y y)=, and thus gets reified as =(_0 _0)=
+** Frame 39 - When are two variables different?
+Two variables are different when they have not been fused.
+
+When introduced as either fresh variables or run* input variables, all variables are considered different from each other.
+
+** Frame 41
+
+Here we see what happens when you reify two variables that haven't been fused. =q= maps to =(x y)=, but =x= and =y= have not been fused and thus must be shown as different.
+
+#+BEGIN_SRC clojure :results pp
+  (run* [q]
+    (fresh [x]
+      (fresh [y]
+	(== (list x y) q))))
+#+END_SRC
+
+#+RESULTS:
+: ((_0 _1))
+: 
+
+This is why we see a pair of =_0 _1_=, because these two fresh variables are different, their values can be any two different ones.
+
+** Frame 43
+#+BEGIN_SRC clojure :results pp
+  (run* [q]
+    (fresh [x]
+      (fresh [y]
+	(== (list x y x) q))))
+#+END_SRC
+
+#+RESULTS:
+: ((_0 _1 _0))
+: 
+
+Here we see that =q= is =x y x=, and =x= and =y= remain fresh. As such, when we reify we'll see two =_0= reifications and one _1= reification.
+
+=x= reifies to =_0= because it's the first variable we encounter.
+
+** Frame 48/49
+
+- occurrence :: A variable =x= occurs in variable =v= when it appears in the value associated with =v=.
+
+- occurrence :: A variable =x= occurs in list =l= when it or any variable fused with =x= is an element of list =l=, or occurs in any element of =l= (i.e. recursive).
+
+** The Second Law of ≡
+If x is fresh, then (≡ v x) succeeds and associates v with x, unless x occurs in v.
+
+** Frame 50
+#+BEGIN_SRC clojure :results pp
+  (run* [q]
+    s#
+    s#)
+#+END_SRC
+
+#+RESULTS:
+: (_0)
+: 
+
+=core.logic= don't have conj2 and disj2, I don't have a reference guide, but based on https://github.com/clojure/core.logic/wiki/A-Core.logic-Primer#user-content-Logic_Programming I think that conjunctions (AND) are implicitly the body or =run*= and =fresh= and disjunctions (OR) are defined as branches of something called =conde=
+** Frame 51
+#+BEGIN_SRC clojure :results pp
+  (run* [q]
+    s#
+    (== 'corn q))
+#+END_SRC
+
+#+RESULTS:
+: (corn)
+: 
+
+=true= && ('corn == q)
+** Frame 52
+#+BEGIN_SRC clojure :results pp
+  (run* [q]
+    u#
+    (== 'corn q))
+#+END_SRC
+
+#+RESULTS:
+: ()
+: 
+
+q is associated with no value, because no value would satisfy (~false && ('corn == q)~)
+** Frame 53
+#+BEGIN_SRC clojure :results pp
+  (run* [q]
+    (== 'meal q)
+    (== 'corn q))
+#+END_SRC
+
+#+RESULTS:
+: ()
+: 
+
+=q= can't be =corn= and =meal= at the same time.
+** Frame 56
+#+BEGIN_SRC clojure :results pp
+  (run* [q]
+    (conde 
+     [(== 'olive q)]
+     [u#]))
+#+END_SRC
+
+#+RESULTS:
+: (olive)
+: 
+
+~(q == 'olive) || false~
+** Frame 58
+#+BEGIN_SRC clojure :results pp
+  (run* [q]
+    (conde 
+     [(== 'olive q)]
+     [(== 'oil q)]))
+#+END_SRC
+
+#+RESULTS:
+: (olive oil)
+: 
+
+~(q == 'olive) || (q == 'oil)~, so =q= can be either of these two values, so our value is a list of the two qualifying values of =q=.
+** Frame 59
+#+BEGIN_SRC clojure :results pp
+  (run* [q]
+    (fresh [x]
+      (fresh [y]
+	(conde
+	 [(== (list x y) q)]
+	 [(== (list y x) q)]))))
+#+END_SRC
+
+#+RESULTS:
+: ((_0 _1) (_0 _1))
+: 
+
+We haven't fused =x= and =y=, so while we don't associate a value with any of these variables, we cannot consider them the same. Also, being a disjunction where both branches can potentially succeed, we have to provide a value for both of them, reifying variables in order of showing up in each sub-expression.
+
+Also, remember that since each branch is a new value, our reification numbering start anew from the first variable encountered.
+** Reminder about conde 
+(An implementation node ... I have to remember that each disjunction branch has to be wrapped in a list =[ ]= otherwise I am using a single OR branch with two ANDed components....
+
+For example,
+
+#+BEGIN_SRC clojure :results pp
+  (run* [q]
+    (fresh [x]
+      (fresh [y]
+	(conde [(== (list x y) q)
+		(== (list y x) q)]))))
+#+END_SRC
+
+#+RESULTS:
+: ((_0 _0))
+: 
+
+effectively means a conjunction between two goals since the conde disjunction has only one branch, whereas the frame actually wanted two conde branches to make a disjunction between those same two expressions.
+** Frame 61
+
+#+BEGIN_SRC clojure :results pp
+  (run* [x]
+    (conde [(== 'oil x)]
+	   [(== 'olive x)]))
+#+END_SRC  
+
+#+RESULTS:
+: (oil olive)
+: 
+
+#+BEGIN_SRC clojure :results pp
+  (run* [x]
+    (conde [(== 'olive x)]
+	   [(== 'oil x)]))
+#+END_SRC
+
+#+RESULTS:
+: (olive oil)
+: 
+
+When evaluating equivalence between output values, the order doesn't matter. So in this case, the value of these two expressions are equivalent.
+** Frame 65
+#+BEGIN_SRC clojure :results pp
+  (run* [x]
+    (conde [(== 'virgin x) u#]
+	   [(conde [(== 'olive x)]
+		   [(conde [s#]
+			   [(== 'oil x)])])]))
+#+END_SRC
+
+#+RESULTS:
+: (olive _0 oil)
+: 
+
+It looks like we have to consider every branch of a conde, even if they are trivial, for successful values, independantly of other branches. This is why our value includes a _0, because there is a branch where success is guaranteed regardless of value._
+
+What is interesting is that we omit values, including a ~()~, for that first =conde= branch which cannot ever be successful. So we only ever gather successes.
+** Frame 79
+Ah here we learn that =run= and =fresh= body sequences are effectively conjunctions.
+** Frame 72 - defrel
+
+#+BEGIN_SRC clojure :results pp
+  (defn teacupo [t]
+    (fn [s]
+      (fn []
+	((conde [(== t 'tea)]
+		[(== t 'cup)])
+	 s))))
+#+END_SRC
+
+#+RESULTS:
+: #'user/teacupo
+: 
+
+I don't really understand this, but I see a bunch of thunking, and the notes say that it is important that =s=, while being passed through into the =conde= which returns a function result, is never referenced in the argument list or body of the "relation" we actually care about (it is thunking infrastructure.)
+
+This is why we use a macro, to hide that secret passthru value. The book advertises scheme's hygienic macros for this reason. I don't understand, and we'll come back to this later.
+** Frame 73 - Definition of a relation
+A relation is a function that returns a goal.
+
+Relations by convention have names which end with the letter o; hence =teacupo=.
+** Frame 86
+
+#+BEGIN_SRC clojure :results pp
+  (run* [x y]
+    (teacupo x)
+    (teacupo x))
+#+END_SRC
+
+#+RESULTS:
+: ([tea _0] [cup _0])
+: 
+
+This is a conjunction, so when we evaluate the second teacupo call, s has already been bound to a value. This is why we only have two tuples. If this was a disjunction I bet we'd have four because we'd need to evaluate the disjunction branches independantly.
+
+#+BEGIN_SRC clojure :results pp
+    (run* [x y]
+      (conde [(teacupo x)]
+	     [(teacupo x)]))
+#+END_SRC
+
+#+RESULTS:
+: ([tea _0] [tea _0] [cup _0] [cup _0])
+: 
+
+Yup.
+** Frame 92 - Introduces =conde=
+=conde= can be used in place of =conj2= and =disj2=. Which is why =core.logic= doesn't have it.
+** The law of =conde=
+Every successful =conde= line contributes one or more values.
+* Chapter 2 - Teaching Old Toys New Tricks
+
