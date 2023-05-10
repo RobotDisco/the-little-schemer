@@ -7,8 +7,68 @@ Remember that we're using core.logic instead of whatever scheme the book uses. K
 * Preamble
 Remember to load core.logic
 
+#+begin_src emacs-lisp
+(require 'ob-clojure)
+#+end_src
+
 #+begin_src clojure :results silent
-  (require '[clojure.core.logic :refer [run* u# s# == fresh conde]])
+  (require '[clojure.core.logic :refer [run* u# s# == fresh conde lcons lcons?]])
+
+  ;; `core.logic` no longer has `defrel`. Thanks to Alexander Fertman via cscabal for this snippet.
+  ;; In hindsight I could have realized this from the footnote in chapter 1 frame 82.
+
+  (defmacro defrel
+    [rel arglist & goals]
+    `(defn ~rel ~arglist
+       (fn
+	 ;; Why is this s# when the book is (s) not (#s)?
+	 ;; Oh in a clojure macro s# is a gensymed symbol, not our core.logic
+	 ;;symbol for unconditional success?
+	 [s#]
+	 (fn
+	   []
+	   ((conde [~@goals]) s#)))))
+
+  ;; chapter 2, frame 6
+  (defrel caro [p a]
+    (fresh [d]
+      (== (lcons a d) p)))
+  ;; chapter 2, frame 13
+  (defrel cdro [p d]
+    (fresh [a]
+      (== (lcons a d) p)))
+  ;; chapter 2, frame 25
+  (defrel conso1 [a d p]
+    (caro p a)
+    (cdro p d))
+  ;; chapter 2, frame 26
+  (defrel conso [a d p]
+    (== (lcons a d) p))
+  ;; chapter 2, frame 33
+  (defrel nullo [x]
+    ;; We are pretending to be scheme, so we will pretend `nil` does not exist
+    (== '() x))
+  ;; Chapter 2 frame 46
+  (defrel pairo [p]
+    (fresh [a d]
+      (conso a d p)))
+  ;; Clojure doesn't have pair?
+  ;; so stealing it from https://github.com/clojure/core.logic/wiki/Differences-from-The-Reasoned-Schemer
+  (defn pair? [x]
+    (or (lcons? x) (and (coll? x) (seq x))))
+  ;; Chapter 2 frame 58
+  (defn singleton? [l]
+    (cond
+      (pair? l) (empty? (rest l))
+      :else false))
+  ;; Chapter 2 frame 64
+  (defrel singletono [l]
+    (conde
+     [(pairo l)]
+     [(fresh (d)
+	(cdro l d)
+	(nullo d))]
+     [(s# u#)]))
 #+end_src
 
 * Chapter 1. Playthings
@@ -488,4 +548,52 @@ Yup.
 ** The law of =conde=
 Every successful =conde= line contributes one or more values.
 * Chapter 2 - Teaching Old Toys New Tricks
+** Frame 5 (now that we've implemented =caro=)
+#+BEGIN_SRC clojure :results pp
+  (run* [r]
+    (fresh [x y]
+      (caro (list r y) x)
+      (== 'pear x)))
+#+END_SRC
 
+#+RESULTS:
+: (pear)
+: 
+** Frame 9
+Variables introduced by =fresh= are values, and regular scheme-like functions can take values as input
+
+(as compared to =conso= which can take outputs like =r= because they are relations?)
+** Frame 12
+=unnesting= will become important, using =fresh= variables and unpacking ~(car (cdr (cdr (cdr ...))))~ into as many fresh variables as needed and sequences of =cdro= like ~(cdro l v); (cdr v w); (cdr w z); (cdr w ...) ...)~
+** Frame 26
+;; Alternate form of =conso= using ~==~ instead of =caro=/=cdro=
+#+BEGIN_SRC clojure :results pp
+    (defrel conso1 [a d p]
+      (== (lcons a d) p))
+#+END_SRC
+
+#+RESULTS:
+: ((a b c d e))
+: 
+** The Translation (Initial)
+To translate a function into a relation, first replace =define= with =defrel=. Then unnest each expression in each =cond= line, and replace each =cond= with =conde=. To unnest a =true=, replace it with =s#=. To unnest a =false=, replace it with =u#=
+
+(what does unnesting mean?)
+** Frame 65
+I guess unnesting means turn an scheme/clojure expression into a set of reasonedschemer? exceptions, since you often need to split a nested scheme expression into a series of fresh declarations, intermediate variables, and translated function invocations.
+** The law of u#
+Any =conde= line that has =u#= as a top-level goal cannot contribute values.
+** Define both =caro= and =cdro= using =conso=
+#+BEGIN_SRC clojure :results pp
+  (defrel caro1 [p a]
+    (fresh [d]
+      (conso a d p)))
+
+  (defrel cdro1 [p d]
+    (fresh [a]
+      (conso a d p)))
+#+END_SRC
+
+#+RESULTS:
+: #'user/cdro1
+: 
