@@ -7,12 +7,14 @@ Remember that we're using core.logic instead of whatever scheme the book uses. K
 * Preamble
 Remember to load core.logic
 
-#+begin_src emacs-lisp
-(require 'ob-clojure)
+#+begin_src emacs-lisp :results silent
+  (require 'ob-clojure)
+  (setq org-babel-clojure-backend 'cider)
 #+end_src
 
 #+begin_src clojure :results silent
-  (require '[clojure.core.logic :refer [run* u# s# == fresh conde lcons lcons?]])
+  (require '[clojure.core.logic :refer [run* u# s# == fresh conde lcons lcons?
+					run llist]])
 
   ;; `core.logic` no longer has `defrel`. Thanks to Alexander Fertman via cscabal for this snippet.
   ;; In hindsight I could have realized this from the footnote in chapter 1 frame 82.
@@ -62,13 +64,68 @@ Remember to load core.logic
       (pair? l) (empty? (rest l))
       :else false))
   ;; Chapter 2 frame 64
-  (defrel singletono [l]
+  (defrel singletono1 [l]
     (conde
      [(pairo l)]
      [(fresh (d)
 	(cdro l d)
 	(nullo d))]
      [(s# u#)]))
+  ;; Chapter 2 frame 68 simplified version
+  (defrel singletono [l]
+    (fresh [d]
+      (cdro l d)
+      (nullo d)))
+  ;; Chapter 3 frame 5
+  (defrel listo1 [l]
+    (conde
+     [(nullo l) s#]
+     [(pairo l) (fresh [d]
+		  (cdro l d)
+		  (listo d))]
+     [s# u#]))
+  ;; Chapter 3 frame 7 (simplified)
+  (defrel listo2 [l]
+    (conde
+     [(nullo l) s#]
+     [(fresh [d]
+	(cdro l d)
+	(listo d))]))
+  ;; Chapter 3 frame 8 (simplified even more)
+  (defrel listo [l]
+    (conde
+     [(nullo l)]
+     [(fresh [d]
+	(cdro l d)
+	(listo d))]))
+  ;; Chapter 3 frame 21
+  (defn lol? [l]
+    (cond
+      (empty? l) true
+      (list? (first l)) (lol? (rest l))
+      :else false))
+  ;; Chapter 3 frame 22
+  (defrel lolo1 [l]
+    (conde
+     [(nullo l) s#]
+     [(fresh [a]
+	(caro l a)
+	(listo a))
+      (fresh [d]
+	(cdro l d)
+	(lolo d))]
+     [s# u#]))
+  ;; simplifies to
+  (defrel lolo [l]
+    (conde
+     [(nullo l)]
+     [(fresh [a]
+	(caro l a)
+	(listo a))
+      (fresh [d]
+	(cdro l d)
+	(lolo d))]))
+    ;; Chapter 3 Frame 33
 #+end_src
 
 * Chapter 1. Playthings
@@ -547,7 +604,7 @@ Yup.
 =conde= can be used in place of =conj2= and =disj2=. Which is why =core.logic= doesn't have it.
 ** The law of =conde=
 Every successful =conde= line contributes one or more values.
-* Chapter 2 - Teaching Old Toys New Tricks
+* Chapter 2. Teaching Old Toys New Tricks
 ** Frame 5 (now that we've implemented =caro=)
 #+BEGIN_SRC clojure :results pp
   (run* [r]
@@ -596,4 +653,261 @@ Any =conde= line that has =u#= as a top-level goal cannot contribute values.
 
 #+RESULTS:
 : #'user/cdro1
+: 
+* Chapter 3. Seeing old friends in new ways
+** The law of s#:
+Any top-level s# can be removed from a =conde= line.
+** Realization about law of =s#=
+Oh. =(conde [thing1 thing2])=, unlike conds, don't require the first thing to be a predicate. Everything is a predicate that returns a goal. So this is why you don't need to write =(conde [(nullo l) s#])= but instead I can write =(conde [(nullo l)])=.
+
+This is because that first thing itself returns a s#, the second s# is thus redundant since it is part of an implicit and/conjunction.
+
+** Translating laws of =u#=/=s#= into more intuitive things
+We can remove =s#= from top-lines of cond because they're redundant in conjunctions, thus they don't influence the decision at all.
+
+We remove all conde lines with a top-level =u#= because those are unconditional falses in a implicit conjunction, thus it will always fail.
+** Frame 11
+If you step through the function in your head or on paper, you will see that at no point do you evaluate or assign the =x= variable, you only ever look at the =cdr= of the input list. Hence how we can return a =_0=
+** Frame 12
+We have no value because we never terminate.
+
+But we have to evaluate =x= because we evaluate =cdr= and get =x= as a cdr. And thus we have to consider all possible values? And in this case, any value works if it is a list?
+
+Also, we've learned that our input variable isn't magical, it follows the laws of any eager language.
+** Frame 13
+=run= is a function that given a positive integer N and a list of input variables and a body of goals, returns N elements containing a set of potential values for those variables.
+** Frame 14
+#+BEGIN_SRC clojure :results pp
+  (run 1 [x]
+    (listo (llist 'a 'b 'c x)))
+#+END_SRC
+
+#+RESULTS:
+: (())
+:
+
+So as long as =x= is a list, this thing is a proper list. So we start with the simplest one, an empty list.
+
+** Frame 17
+So step through =listo= and think of the first way to get a success. It would be when =(nilo l)=, the first condition, succeeds. And that means we know that a value of '()' succeeds, so it can be the first one we return.
+** Frame 18
+#+BEGIN_SRC clojure :results pp
+  (run 5 [x]
+    (listo (llist 'a 'b 'c x)))
+#+END_SRC
+
+#+RESULTS:
+: (() (_0) (_0 _1) (_0 _1 _2) (_0 _1 _2 _3))
+: 
+
+OK so I am relieved. Here we see five potential values.
+The first time we ask "what value do we need for =nullo= to succeed?"
+
+The second time we assume we get a non-null value, go down the cdr (skipping over evaluating the car) and then, in the recursive =nullo= call, getting the value that makes =nullo= succeed. So we get =(_0)=
+
+But what if we instead went down the =cdr= path again? We know we'd have a fresh value followed by another list, which isn't null so we have a second fresh value, and now we recurse a second time, and return an empty list this second time, so now we have =(_0 _1)=.
+
+And we go again, this time getting =(_0 _1 _2)= and so on, until we get five values.
+
+The ordering doesn't formally matter, but this is how I imagine a turing machine doing it.
+** Frame 19
+Oh interesting, what introduces that additional fresh value? The =(fresh [d] ...)= that we keep recusively interating over, and fusing in the =cdro= call.
+** Frame 24
+This frame reminds us to work through a =lolo= invocation as if we were debugging it to understand what is happening at each moment of execution.
+** Frame 25
+Notice how we evaluate through and fuse as needed (i.e. figure out a value of =x= and then realize we have our first value of =q=, which doesn't matter in this success, and thus return a reified variable.)
+** Frame 27
+Work through each defrel, line by line, and figure out all the branches and values that get each fresh variable to make the goal succeed, for as many values as needed.
+** Frame 32
+#+BEGIN_SRC clojure :results pp
+  (defrel singletono32 [l]
+    (fresh [a]
+      (== (llist a) l)))
+#+END_SRC
+
+#+RESULTS:
+: class clojure.lang.Compiler$CompilerException
+** Frame 33
+#+BEGIN_SRC clojure :results silent
+  (defrel loso [l]
+    (conde
+     [(nullo l)]
+     [(fresh [a]
+	(caro a l)
+	(singletono a))
+      (fresh [d]
+	(cdro d l)
+	(loso l))]))
+#+END_SRC
+** Frame 44
+#+BEGIN_SRC clojure :results pp
+  (defrel membero1 [x l]
+    (conde
+     [(nullo l) u#]
+     [(fresh [a]
+	(caro l a)
+	(== a x))
+      s#]
+     [s# (fresh [d]
+	   (cdro l d)
+	   (membero x d))]))
+#+END_SRC
+
+#+RESULTS:
+: #'user/membero1
+: 
+
+** Frame 46
+#+BEGIN_SRC clojure :results pp
+  (defrel membero2 [x l]
+    (conde
+     [(fresh [a]
+	(caro l a)
+	(== a x))]
+     [(fresh [d]
+	(cdro l d)
+	(membero x d))]))
+#+END_SRC
+
+#+RESULTS:
+: #'user/membero
+: 
+** Frame 47
+#+BEGIN_SRC clojure :results pp
+  (defrel membero [x l]
+    (conde
+     [(caro l x)]
+     [(fresh [d]
+	(cdro l d)
+	(membero x d))]))
+#+END_SRC
+
+#+RESULTS:
+: #'user/membero
+: 
+
+We can get rid of the fusing of =x= and =a= because that's the only reason we introduced =a=.
+** Frame 55
+#+BEGIN_SRC clojure :results pp
+(run* [y] (membero y (llist 'pear 'grape 'peaches)))
+#+END_SRC
+
+#+RESULTS:
+: (pear grape)
+: 
+
+The reason ='peaches= is because this isn't a proper list, ='peaches= isn't a list so none of the =conde= stanzas pass.
+** Frame 58
+We've pointed out that =run*= and =run= can fill the blanks in anywhere to make the goals successful.
+** Frame 59
+#+BEGIN_SRC clojure :results pp
+(run 1 [x] (membero 'e (llist 'pasta 'e x 'fagioli)))
+#+END_SRC
+
+#+RESULTS:
+: (_0)
+: 
+
+Because the first successful evaluation happens before we need to evaluate our input variable, we get back =_0=.
+** Frame 60
+#+BEGIN_SRC clojure :results pp
+(run 1 [x] (membero 'e (llist 'pasta x 'e 'fagioli)))
+#+END_SRC
+
+#+RESULTS:
+: (e)
+: 
+
+Because the first successful evaluation requires =x= to be ='e=, we get back =e=.
+** Frame 63
+#+BEGIN_SRC clojure :results pp
+  (run* [q]
+    (fresh [x y]
+      (== (llist 'pasta x 'fagioli y '()) q)
+      (membero 'e q)))
+#+END_SRC
+
+#+RESULTS:
+: ((pasta e fagioli _0) (pasta _0 fagioli e))
+: 
+
+Again, we can fill out our lists by fusing the list to our output variable.
+** Frame 64
+#+BEGIN_SRC clojure :results pp
+  (run 1 [l]
+    (membero 'tofu l))
+#+END_SRC
+
+#+RESULTS:
+: ((tofu . _0))
+: 
+
+I think this is because we know we are in a list, and thus are a =cons= pair, and we don't evaluate the =cdr= part of the pair so it comes back reified.
+** Frame 66
+Remember that returning an infinite number of values is the same as returning no value.
+** Frame 67
+#+BEGIN_SRC clojure :results pp
+  (run 5 [l]
+    (membero 'tofu l))
+#+END_SRC
+
+#+RESULTS:
+: ((tofu . _0)
+:  (_0 tofu . _1)
+:  (_0 _1 tofu . _2)
+:  (_0 _1 _2 tofu . _3)
+:  (_0 _1 _2 _3 tofu . _4))
+: 
+
+I'm really glad I figured this out, even if I didn't realize that as an infinite list this means =run*= returns no value.
+** Frame 73
+#+BEGIN_SRC clojure :results pp
+  (defrel proper-membero [x l]
+    (conde
+     [(caro l x)
+      (fresh [d]
+	(cdro l d)
+	(listo d))]
+     [(fresh [d]
+	(cdro l d)
+	(proper-membero x d))]))
+#+END_SRC
+
+#+RESULTS:
+: #'user/proper-membero
+: 
+** Frame 74
+#+BEGIN_SRC clojure :results pp
+(run 12 [l] (proper-membero 'tofu l))
+#+END_SRC
+
+#+RESULTS:
+#+begin_example
+((tofu)
+ (tofu _0)
+ (tofu _0 _1)
+ (_0 tofu)
+ (tofu _0 _1 _2)
+ (tofu _0 _1 _2 _3)
+ (_0 tofu _1)
+ (tofu _0 _1 _2 _3 _4)
+ (tofu _0 _1 _2 _3 _4 _5)
+ (_0 tofu _1 _2)
+ (_0 _1 tofu)
+ (tofu _0 _1 _2 _3 _4 _5 _6))
+
+#+end_example
+
+I don't get why it evaluates in this order but order doesn't matter.
+** Frame 75
+#+BEGIN_SRC clojure :results pp
+  (defn proper-member? [x l]
+    (cond
+      (empty? l) false
+      (== (first l) x) (list? (rest l))
+      :else (proper-member? x (rest l))))
+#+END_SRC
+
+#+RESULTS:
+: #'user/proper-member?
 : 
