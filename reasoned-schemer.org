@@ -911,3 +911,58 @@ I don't get why it evaluates in this order but order doesn't matter.
 #+RESULTS:
 : #'user/proper-member?
 : 
+* Chapter 4: Double Your Fun
+** Frame 6
+Note that because =append= doesn't look at the =cdr= value, we can produce improper lists.
+** Frame 8
+#+BEGIN_SRC clojure :results pp
+  (defrel appendo1 [l t out]
+    (conde
+     [(nullo l) (== t out)]
+     [(fresh [res]
+	(fresh [d]
+	  (cdro l d)
+	  (appendo d t res))
+	(fresh [a]
+	  (caro l a)
+	  (conso a res out)))]))
+#+END_SRC
+
+#+RESULTS:
+: #'user/appendo
+: 
+
+Note that we have an output parameter here.
+** The Translation (Final)
+To translate a function into a relation, first replace define with =defrel=. Then unnest each expression in each =cond= line, and replace each =cond= with =conde=. To unnest a =true=, replace it with =s#=. To unnest a =false=, replace it with =u#=.
+
+If the value of at least one =cond= line can be a /non/-Boolean, add an argument, say =out=, to =defrel= to hold what would have been the function's value. When unnesting a line whose value is not a Boolean, ensure that either some value is associated with =out=, and that =out= is the last argument to a recursion.
+** Frame 11
+#+BEGIN_SRC clojure :results pp
+  (defrel appendo2 [l t out]
+    (conde
+     [(nullo l) (== t out)]
+     [(fresh [a d res]
+	(cdro l d)
+	(appendo d t res)
+	(caro l a)
+	(conso a res out))]))
+#+END_SRC
+
+We can reduce our nested =fresh= calls into one.
+** Frame 13
+#+BEGIN_SRC clojure :results pp
+  (defrel appendo [l t out]
+    (conde
+     [(nullo l) (== t out)]
+     [(fresh [a d res]
+	(conso a d l)
+	(appendo d t res)
+	(conso a res out))]))
+#+END_SRC
+We can replace our =caro= and =cdro= with =cons=.
+** Frame 15
+The first cons, =(conso a d l)=, is used to split out =l= into two components we can work with, =a= and =d=.
+
+The second cons, =(conso a res out)=, is used to combine results we know, =a= and =res=, into a single output list, =out=.
+** Frame 16
