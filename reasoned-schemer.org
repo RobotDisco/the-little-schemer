@@ -951,7 +951,7 @@ If the value of at least one =cond= line can be a /non/-Boolean, add an argument
 
 We can reduce our nested =fresh= calls into one.
 ** Frame 13
-#+BEGIN_SRC clojure :results pp
+#+BEGIN_SRC clojure :results silent
   (defrel appendo [l t out]
     (conde
      [(nullo l) (== t out)]
@@ -960,9 +960,45 @@ We can reduce our nested =fresh= calls into one.
 	(appendo d t res)
 	(conso a res out))]))
 #+END_SRC
+
 We can replace our =caro= and =cdro= with =cons=.
 ** Frame 15
 The first cons, =(conso a d l)=, is used to split out =l= into two components we can work with, =a= and =d=.
 
 The second cons, =(conso a res out)=, is used to combine results we know, =a= and =res=, into a single output list, =out=.
-** Frame 16
+** Frame 17
+Just work your way through each case, recursing, figuring out possible values of each subcomponent
+
+You can think about it in terms of:
+
+Case 1. =l= is ='()=
+
+Case 2.
+=l= is not empty, so in our second branch, we know that =l= can be split into =(cons a d l)=
+
+Now we step through =(appendo 'd 't res)=, we know =d= is some list. By the same =cons= as before, we need to consider:
+If =d= is null, we know that =l= is =(a)= which is =(_0)=
+
+If it isn't, we have to recurse /again/, and the same two-pronged consideration happens.
+
+Each time we recursively cover the =(nullo l)=, we go back up, and fuse the variables in the last =conso=.
+
+
+And thus we have our answers. We keep creating new fresh =d= lists for our use that tack onto the previous layer's answer, and thus we keep introducing new reified variables.
+
+Try this in a notebook
+** Frame 18
+=y= is always =_0= because we never wind up evaluating it as we recurse.
+** Frame 20
+Still remain not-smart.
+
+We do the same above thing, line by line, no intuitive leaps. We end up with a bunch of reified variables, each recursion pushing new sub-variables into each answer's iteration.
+** Frame 21
+Whereas before we were looking for =y= in isolation, now we are looking at =(run6 [x y z] (appendo x y z))=, when we reify that last value is going to keep increasing as it's always the last variable to be reified.
+
+** Frame 24
+Don't get too smart; as we evaluate this we never expand =y=, so it comes back as a fresh variable at the end of a cons pair. Remember the numbers only get fixed at the very end, as we print.
+** Frame 39
+I don't understand how to work this out by computing it
+
+
