@@ -911,7 +911,7 @@ I don't get why it evaluates in this order but order doesn't matter.
 #+RESULTS:
 : #'user/proper-member?
 : 
-* Chapter 4: Double Your Fun
+* Chapter 4. Double Your Fun
 ** Frame 6
 Note that because =append= doesn't look at the =cdr= value, we can produce improper lists.
 ** Frame 8
@@ -952,7 +952,7 @@ If the value of at least one =cond= line can be a /non/-Boolean, add an argument
 We can reduce our nested =fresh= calls into one.
 ** Frame 13
 #+BEGIN_SRC clojure :results silent
-  (defrel appendo [l t out]
+  (defrel appendo3 [l t out]
     (conde
      [(nullo l) (== t out)]
      [(fresh [a d res]
@@ -999,6 +999,57 @@ Whereas before we were looking for =y= in isolation, now we are looking at =(run
 ** Frame 24
 Don't get too smart; as we evaluate this we never expand =y=, so it comes back as a fresh variable at the end of a cons pair. Remember the numbers only get fixed at the very end, as we print.
 ** Frame 39
-I don't understand how to work this out by computing it
+I don't understand how to work this out by computing it. Giving up, maybe I will understand when I get to the implementation.
 
+Update: After many hours of thinking about this now, I think I understand.
 
+When =out= is =()=, the way to terminate out of the non-null-l branch is when =conso= is evaluated, as =conso= cannot succeed when its output is ='()=.
+
+But this only happens after the recursive call. The recursive call can always easily produce a value when we evaluate the case where =l= is ='()=. So that's why we can progress and get the first six values. However, because we don't evaluate =out= in a way that allows for termination until we hit that last =conso=, we will keep looping forever.
+
+Flipping the recursive call to the end forces us to evaluate all non-recursive parts of the cond branch, and we need to make sure some condition catches and terminates the recursion there.
+** The First Commandment
+Within each sequence of goals, move non-recursive goals before recursive goals.
+** Frame 41
+I honestly don't understand how this works. I guess that appendo works better recursively when you've unified as much as possible before the recursive call? It matches normal advice around recusion?
+
+#+BEGIN_SRC clojure :results silent
+  (defrel appendo [l t out]
+    (conde
+     [(nullo l) (== t out)]
+     [(fresh [a d res]
+	(conso a d l)
+	(conso a res out)
+	(appendo d t res))]))
+#+END_SRC
+** Frame 43
+#+BEGIN_SRC clojure :results silent
+  (defrel swappendo [l t out]
+    (conde
+     [(fresh [a d res]
+	(conso a d l)
+	(conso a res out)
+	(appendo d t res))]
+     [(nullo l) (== t out)]))
+#+END_SRC
+** The Law of Swapping conde Lines
+Swapping two conde lines does not affect the values contributed by conde.
+** Frame 47
+#+BEGIN_SRC clojure :results silent
+  (defrel unwrapo [x out]
+    (conde [(fresh [a]
+	      (caro x a)
+	      (unwrap a out))]
+	   [(== x out)]))
+#+END_SRC
+
+Note how we can remove =(pairo ...)= because it doesn't do anything for us in terms of passing along a value, and because our caro will fail if pairo fails, rendering pairo redundant.
+** Frame 49
+The reason we keep seeing partially unwrapped values is because we have a =conde=, where one of the branches spits out the input as is, and thus it is considered a successful value.
+
+(from the book: "~unwrapo~ is a tricky relation whose behaviour does not fully comply with the behaviour of the function ~unwrapo~. Nevertheless, by keeping track of the fusing, you can follow the =pizza= example.")
+
+I don't know why we're ok with this and not throwing in logic to only include a singleton? Maybe we can't?
+** Frame 54
+I think the point of this and frame 53 is to show that wrapping the input in a list means that your result is just one unwrapping earlier/later based on the values of the invocation, but it's otherwise basically infinite unwrapping possibilities.
+* Chapter 5. Members Only
