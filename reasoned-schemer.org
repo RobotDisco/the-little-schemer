@@ -1053,3 +1053,208 @@ I don't know why we're ok with this and not throwing in logic to only include a 
 ** Frame 54
 I think the point of this and frame 53 is to show that wrapping the input in a list means that your result is just one unwrapping earlier/later based on the values of the invocation, but it's otherwise basically infinite unwrapping possibilities.
 * Chapter 5. Members Only
+** Frame 4
+#+BEGIN_SRC clojure :results silent
+  (defrel memo1 [x l out]
+    (conde [(nullo l) u#]
+	   [(fresh [a]
+	      (caro l a)
+	      (== a x))
+	    (== l out)]
+	   [s# (fresh [d]
+		 (cdro l d)
+		 (memo x d out))]))
+
+  (defrel memo2 [x l out]
+    (fresh [a d]
+      (cons a d l)
+      (conde [(== a x) (== l out)]
+	     [(memo x d out)])))
+
+  (defrel memo [x l out]
+    (conde [(caro l x) (== l out)]
+	   [(fresh [d]
+	      (cdro l d)
+	      (memo x d out))]))
+#+END_SRC
+
+=memo= is what the book produces as an optimized version. It's straightforwardly doing the book's "translation" algorithm, but also removes the need for a first =(fresh [a] ...)= because we don't need to create a fresh variable when we're just going to equate it with =x=.
+
+Before reading the solution, I tried making a version that first split out =l= using =(cons a d l)=, which seemed more elegant, but it again produces a fresh variable (=a=) that we don't need. Also, maybe there's some merit to how the book's version dones't lift the fresh =d= variable to need any more scope than it absolutely has to have? Mine maybe has an =a= and =d= fresh variable set that is further out than it needs to be.
+** Frame 12
+Remember that =(run 1 ...)= means we will search for a single solution no matter how long it takes.
+
+So we will run at least one time, and we will find at most one association.
+** Frame 16
+It's made explicit here that we always evaluate every =conde= branch for possible solutions.
+** Frame 17
+=cond= in standard scheme goes down one branch only on each run.
+
+=conde= in "The Reasoned Schemer?" evaluates _every_ branch for possible solutions.
+** Frame 25
+#+BEGIN_SRC clojure :results silent
+  (defrel rembero1 [x l out]
+    (conde [(nullo l) (== '() out)]
+	   [(fresh [a]
+	      (caro l a)
+	      (== a x))
+	    (cdro l out)]
+	   [s# (fresh [res]
+		 (fresh [d]
+		   (cdro l d)
+		   (rembero1 x d res))
+		 (fresh [a]
+		   (caro l a)
+		   (conso a res out)))]))
+
+  (defrel rembero [x l out]
+    (conde [(nullo l) (== '() out)]
+	   [(conso x out l)]
+	   [(fresh [a d res]
+	      (conso a d l)
+	      (conso a res out)
+	      (rembero x d res))]))
+#+END_SRC
+** Frame 27
+Three values:
+1. iteration 1 cond 2
+2. iteration 1 cond 3 ('pea) prepended to iteration 2 cond 2 ('())
+3. iteration 1 cond 3 ('pea) prepended to iteration 2 cond 3 ('pea) prepended to iteration 3 cond 1 ('())
+** Frame 28
+#+BEGIN_SRC clojure :results pp
+  (run* [out]
+    (fresh [y z]
+      (rembero y (llist 'a 'b y 'd z 'e '()) out)))
+#+END_SRC
+
+#+RESULTS:
+: ((b a d _0 e)
+:  (a b d _0 e)
+:  (a b d _0 e)
+:  (a b d _0 e)
+:  (a b _0 d e)
+:  (a b e d _0)
+:  (a b _0 d _1 e))
+: 
+
+Iter 1 Case 2 (if y == a): ~(b a d _0 e)~
+Recurse under Iter 1 Case 3...
+Iter 2 Case 2 (if y == b): ~(a b d _0 e)~
+Recurse under Iter 2 Case 3...
+Iter 3 Case 2 (just remove y): ~(a b d _0 e)~ (doesn't matter what z is)
+Recurse under Iter 3 Case 3...
+Iter 4 Case 2 (y == d): ~(a b d _0 e)~
+Recurse under Iter 4 Case 3...
+Iter 5 Case 2 (y == z): ~(a b _0 d e)~ ('y stays, 'z goes)
+Recuse under Iter 5 Case 3:
+Iter 6 Case 2 (y == e): ~(a b e d _0)~
+Recuse under Iter 6 Case 4:
+Iter 6 Case 1: ~(a b _0 d _1 e)~
+Can't recurse because we can't conso to produce an empty list.
+** Frame 48
+#+BEGIN_SRC clojure :results pp
+  (run* [y z]
+    (rembero y (llist y 'd z 'e '()) (llist y 'd 'e '())))
+#+END_SRC
+
+#+RESULTS:
+: ([d d] [d d] [_0 _0] [e e])
+: 
+
+Iter 1, Case 2:
+~([_y] d _z e)~ = ~(_y d e)~ -> _y = d (since _y's value is always being deleted)
+~([d] d _z e)~ = ~(d d e)~ -> _z = d (to match)
+~([d] d d e)~ =  ~(d d e)~ -> (d d)
+Iter 2, Case 2:
+~(_y [d] _z e)~ = ~(_y d e)~ -> _y = d (since _y's value is always being deleted)
+~(d [d] _z e)~ = ~(d d e)~ -> _z = d (to match)
+~(d [d] d e)~ = ~(d d e)~ -> (d d)
+Iter 3, Case 2:
+~(_y d [_z] e])~ = ~(_y d e)~ -> _y = _z (since _y's value is always being deleted)
+~(_y d [_y] e])~ = ~(_y d e)~ -> _y = _0, value doesn't matter
+~(_0 d [_0] e])~ = ~(_0 d e)~ -> (_0 _0)
+Iter 4, Case 2:
+~(_y d _z [e])~ = ~(_y d e)~ -> _y = e (since _y's value is always being deleted)
+~(e d _z [e])~ = ~(e d e)~ -> _z = e (to match)
+~(e d e [e])~ = ~(e d e)~ -> (e e)
+
+** Frame 56
+#+BEGIN_SRC clojure :results pp
+  (run 4 [y z w out]
+    (rembero y (lcons z w) out))
+#+END_SRC
+
+#+RESULTS:
+: ([_0 _0 _1 _1]
+:  [_0 _1 () (_1)]
+:  [_0 _1 (_0 . _2) (_1 . _2)]
+:  [_0 _1 (_2) (_1 _2)])
+: 
+
+Iter 1:
+_y = ?, _z = ?, _w = ?, _out = ?
+x = _y, _l = (_z . _w), out = _out
+Iter 1 Case 2:
+~(conso x out l)~
+~(conso _y _out (_z . _w))~ -> _z = _y
+~(conso _y _out (_y . _w))~ -> _z = _y, _out = _w
+~(conso _y _w (_y . _w))~ -> _z = _y, _out = _w
+*(_0 _0 _1 _1)*
+Iter 1 Case 3:
+~(conso _z _w '(_z . _w))~
+~(conso _z _res _out)~ -> ~(conso _z _res (_z . _res))~
+~(rembero _y _w _res)~ -> Run Iter 2
+Iter 2:
+x = _y, _l = _w, out = _res
+Iter 2 Case 1:
+Assume l = _w = () -> l = (), out = ()
+_w = l = (), out = () -> _w = (), _res = ()
+Pop back up the stack to Iter 1 Case 3:
+~(rembero _y () ())~
+~(conso _z () (_z))~
+*(_0 _1 () (_1))*
+Iter 2 Case 2:
+Assume ~(conso x out l)~
+~(conso _y _res _w)~
+~(conso _y _res (_y . _res)~
+x = _y, out = _res, l = w = (_y . _res)
+Pop back up the stack to Iter 1 Case 3:
+~(rembero _y (_y . _res1) _res1~
+~(conso _z _res1 (_z . _res1))~
+_y = _0, _z = _1, _w = (_y . _res1), out = (_z . _res1)
+_y = _0, _z = _1, _w = (_0 . _2), out = (_1 . _2)
+*(_0 _1, (_0 . _2) (_1 . _2))*
+Iter 2 Case 3:
+~(conso _w1 _w2 _w)~ -> ~(conso _w1 _w2 (_w1 . _w2))~
+~(conso _w1 res out)~ -> ~(conso _w1 _res (_w1 . _res))~
+~(rembero _y _w2 _res)~ -> Run Iter 3
+Iter 3:
+x = _y, _l = _w2, out = ?
+Iter 3 Case 1:
+Assume l is '() -> l = _w2 = (), out = ()
+Pop back up the stack to Iter 2 Case 3:
+~(rembero _y '() '())~ -> x = _y, d = _w2 = (), res = ()
+~(conso _w1 res (_w1 . _res))~ -> ~(conso _w1 '() (_w1))~
+_y = _0, _w = (_w1), out = (_w1)
+Pop back up the stack to Iter 1 Case 3:
+~(rembero _y _w _res)~ -> ~(rembero _y (_w1) (_w1)~
+~(conso _z (_w1) (_z _w1))~
+_y = _0, _z = _1, _w = (_w1) = (_2), out = (_z _w1) = (_1 _2)
+*(_0 _1 (_2) (_1 _2))*
+** Frame 61
+Iter 3 Case 2:
+Assume ~(conso x out l)~
+~(conso _y _res _w2)~
+~(conso _y _res (_y . _res)~
+x = _y, out = _res, l = _w2 = (_y . _res)
+Pop back up the stack to Iter 2 Case 3:
+~(rembero _y (_y . _res) _res~ x = _y, d = (_y . _res), res = _res
+~(conso _w1 _res (_w1 . _res))~ -> a = _w1 _out = (_w1 . _res)
+~(conso _w1 (_y . _res) (_w1 _y . _res))~ -> l = (_w1 _y . _res)
+x = _y, _l = (_w1 _y . _res), _out = (_w1 . _res)_
+Pop back up the stack to Iter 1 Case 3:
+~(rembero _y (_w1 _y . _res) (_w1 . _res)))~ -> x = _y _
+~(conso _z (_w1 . res) (_z . _w1 . _res))~ -> out = (_z _w1 . _res)
+~(conso _z (_w1 _y . _res) (_z _w1 _y . _res)) -> l = (_z _w1 _y . _res)
+_y = _0_, _z = _1, _w = (_2 _0 _3), out = (_1 _2 . _3)
+*(_0 _1 (_2 _0 . _3) (_1 _2 . _3))*
