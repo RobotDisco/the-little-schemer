@@ -1161,22 +1161,45 @@ Can't recurse because we can't conso to produce an empty list.
 : ([d d] [d d] [_0 _0] [e e])
 : 
 
+
 Iter 1, Case 2:
+
+
 ~([_y] d _z e)~ = ~(_y d e)~ -> _y = d (since _y's value is always being deleted)
+
 ~([d] d _z e)~ = ~(d d e)~ -> _z = d (to match)
-~([d] d d e)~ =  ~(d d e)~ -> (d d)
+
+~([d] d d e)~ =  ~(d d e)~ -> *(d d)*
+
+
 Iter 2, Case 2:
+
+
 ~(_y [d] _z e)~ = ~(_y d e)~ -> _y = d (since _y's value is always being deleted)
+
 ~(d [d] _z e)~ = ~(d d e)~ -> _z = d (to match)
-~(d [d] d e)~ = ~(d d e)~ -> (d d)
+
+~(d [d] d e)~ = ~(d d e)~ -> *(d d)*
+
+
 Iter 3, Case 2:
+
+
 ~(_y d [_z] e])~ = ~(_y d e)~ -> _y = _z (since _y's value is always being deleted)
+
 ~(_y d [_y] e])~ = ~(_y d e)~ -> _y = _0, value doesn't matter
-~(_0 d [_0] e])~ = ~(_0 d e)~ -> (_0 _0)
+
+~(_0 d [_0] e])~ = ~(_0 d e)~ -> *(_0 _0)*
+
+
 Iter 4, Case 2:
+
+
 ~(_y d _z [e])~ = ~(_y d e)~ -> _y = e (since _y's value is always being deleted)
+
 ~(e d _z [e])~ = ~(e d e)~ -> _z = e (to match)
-~(e d e [e])~ = ~(e d e)~ -> (e e)
+
+~(e d e [e])~ = ~(e d e)~ -> *(e e)*
 
 ** Frame 56
 #+BEGIN_SRC clojure :results pp
@@ -1184,77 +1207,165 @@ Iter 4, Case 2:
     (rembero y (lcons z w) out))
 #+END_SRC
 
-#+RESULTS:
-: ([_0 _0 _1 _1]
-:  [_0 _1 () (_1)]
-:  [_0 _1 (_0 . _2) (_1 . _2)]
-:  [_0 _1 (_2) (_1 _2)])
-: 
 
 Iter 1:
+
+
 _y = ?, _z = ?, _w = ?, _out = ?
+
 x = _y, _l = (_z . _w), out = _out
+
+
 Iter 1 Case 2:
+
+
 ~(conso x out l)~
+
 ~(conso _y _out (_z . _w))~ -> _z = _y
+
 ~(conso _y _out (_y . _w))~ -> _z = _y, _out = _w
+
 ~(conso _y _w (_y . _w))~ -> _z = _y, _out = _w
+
 *(_0 _0 _1 _1)*
+
+
 Iter 1 Case 3:
+
+
 ~(conso _z _w '(_z . _w))~
+
 ~(conso _z _res _out)~ -> ~(conso _z _res (_z . _res))~
+
 ~(rembero _y _w _res)~ -> Run Iter 2
+
+
 Iter 2:
+
+
 x = _y, _l = _w, out = _res
+
+
 Iter 2 Case 1:
+
+
 Assume l = _w = () -> l = (), out = ()
+
 _w = l = (), out = () -> _w = (), _res = ()
+
+
 Pop back up the stack to Iter 1 Case 3:
+
+
 ~(rembero _y () ())~
+
 ~(conso _z () (_z))~
+
 *(_0 _1 () (_1))*
+
+
 Iter 2 Case 2:
+
+
 Assume ~(conso x out l)~
+
 ~(conso _y _res _w)~
+
 ~(conso _y _res (_y . _res)~
+
 x = _y, out = _res, l = w = (_y . _res)
+
+
 Pop back up the stack to Iter 1 Case 3:
+
+
 ~(rembero _y (_y . _res1) _res1~
+
 ~(conso _z _res1 (_z . _res1))~
+
 _y = _0, _z = _1, _w = (_y . _res1), out = (_z . _res1)
+
 _y = _0, _z = _1, _w = (_0 . _2), out = (_1 . _2)
+
 *(_0 _1, (_0 . _2) (_1 . _2))*
+
+
 Iter 2 Case 3:
+
+
 ~(conso _w1 _w2 _w)~ -> ~(conso _w1 _w2 (_w1 . _w2))~
+
 ~(conso _w1 res out)~ -> ~(conso _w1 _res (_w1 . _res))~
+
 ~(rembero _y _w2 _res)~ -> Run Iter 3
+
+
 Iter 3:
+
+
 x = _y, _l = _w2, out = ?
+
+
 Iter 3 Case 1:
+
+
 Assume l is '() -> l = _w2 = (), out = ()
+
+
 Pop back up the stack to Iter 2 Case 3:
+
+
 ~(rembero _y '() '())~ -> x = _y, d = _w2 = (), res = ()
+
 ~(conso _w1 res (_w1 . _res))~ -> ~(conso _w1 '() (_w1))~
+
 _y = _0, _w = (_w1), out = (_w1)
+
+
 Pop back up the stack to Iter 1 Case 3:
+
+
 ~(rembero _y _w _res)~ -> ~(rembero _y (_w1) (_w1)~
+
 ~(conso _z (_w1) (_z _w1))~
+
 _y = _0, _z = _1, _w = (_w1) = (_2), out = (_z _w1) = (_1 _2)
+
 *(_0 _1 (_2) (_1 _2))*
 ** Frame 61
 Iter 3 Case 2:
+
+
 Assume ~(conso x out l)~
+
 ~(conso _y _res _w2)~
+
 ~(conso _y _res (_y . _res)~
+
 x = _y, out = _res, l = _w2 = (_y . _res)
+
+
 Pop back up the stack to Iter 2 Case 3:
+
+
 ~(rembero _y (_y . _res) _res~ x = _y, d = (_y . _res), res = _res
+
 ~(conso _w1 _res (_w1 . _res))~ -> a = _w1 _out = (_w1 . _res)
+
 ~(conso _w1 (_y . _res) (_w1 _y . _res))~ -> l = (_w1 _y . _res)
+
 x = _y, _l = (_w1 _y . _res), _out = (_w1 . _res)_
+
+
 Pop back up the stack to Iter 1 Case 3:
+
+
 ~(rembero _y (_w1 _y . _res) (_w1 . _res)))~ -> x = _y _
+
 ~(conso _z (_w1 . res) (_z . _w1 . _res))~ -> out = (_z _w1 . _res)
+
 ~(conso _z (_w1 _y . _res) (_z _w1 _y . _res)) -> l = (_z _w1 _y . _res)
+
 _y = _0_, _z = _1, _w = (_2 _0 _3), out = (_1 _2 . _3)
+
 *(_0 _1 (_2 _0 . _3) (_1 _2 . _3))*
