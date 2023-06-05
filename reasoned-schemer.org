@@ -1138,18 +1138,31 @@ Three values:
 : 
 
 Iter 1 Case 2 (if y == a): ~(b a d _0 e)~
+
 Recurse under Iter 1 Case 3...
+
 Iter 2 Case 2 (if y == b): ~(a b d _0 e)~
+
 Recurse under Iter 2 Case 3...
+
 Iter 3 Case 2 (just remove y): ~(a b d _0 e)~ (doesn't matter what z is)
+
 Recurse under Iter 3 Case 3...
+
 Iter 4 Case 2 (y == d): ~(a b d _0 e)~
+
 Recurse under Iter 4 Case 3...
+
 Iter 5 Case 2 (y == z): ~(a b _0 d e)~ ('y stays, 'z goes)
+
 Recuse under Iter 5 Case 3:
+
 Iter 6 Case 2 (y == e): ~(a b e d _0)~
+
 Recuse under Iter 6 Case 4:
+
 Iter 6 Case 1: ~(a b _0 d _1 e)~
+
 Can't recurse because we can't conso to produce an empty list.
 ** Frame 48
 #+BEGIN_SRC clojure :results pp
@@ -1369,3 +1382,12 @@ Pop back up the stack to Iter 1 Case 3:
 _y = _0_, _z = _1, _w = (_2 _0 _3), out = (_1 _2 . _3)
 
 *(_0 _1 (_2 _0 . _3) (_1 _2 . _3))*
+* Chapter 6. The Fun Never Ends
+** Frame 8
+Remember that we run until we find a single success or terminate. However, in this case we infinitely run, since we will always keep returning ~u#~ thanks to the =always= running before the u#.
+** Frame 10
+Ditto, we wil keep retrying because of infinite recursion in =conde=, which has to explore every branch until they terminate. And in this case =always= never will.
+** Frame 15
+Non-termination is also a goal! It is neither successful nor non-successful.
+** Frame 19
+I have zero idea how this works from an implementation POV. It makes sense logically, but not mechanistically.
