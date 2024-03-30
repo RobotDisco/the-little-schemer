@@ -28,7 +28,7 @@
         };
 
         devShells.default = pkgs.mkShell {
-          packages = [ pkgs.clojure pkgs.clojure-lsp ];
+          packages = [ pkgs.clojure pkgs.clojure-lsp pkgs.racket ];
         };
       });
 
