@@ -1,0 +1,3 @@
+#lang pie
+
+(quote hello)

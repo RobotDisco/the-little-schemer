@@ -1,53 +1,106 @@
-* The Law of Tick Marks
+* Chapter 1: The More Things Change, the More They Stay the Same
+** The Law of Tick Marks
 A tick mark directly followed by one or more letters and hyphens is an =Atom=
 
-* The Commandment of Tick Marks
+** The Commandment of Tick Marks
 Two expressions are the same =Atom= if their values are tick marks followed by identical letters and hyphens
 
-* The Law of =Atom=
+** The Law of =Atom=
 =Atom= is a type.
 
-* The Four Forms of Judgement
+** The Four Forms of Judgement
 1. (expression) is a (type).
 2. (expression1) is the same (type) as (expression1).
 3. (type) is a type.
 4. (expression1) and (expression2) are the same type.
 
-* Normal Forms
+** Normal Forms
 Given a type, every expression described by that type has a /normal form/, which is the most direct way of writing it.
 If two expressions are the same, then they have identical normal forms, if and they have identical normal forms, then they are the same.
 
-* Normal Forms and Types
+** Normal Forms and Types
 Sameness is always according to a type, so normal forms are also determined by a type.
 
-* The first Commandment of =cons=
+** The first Commandment of =cons=
 Two =cons=-expressions are the same =(Pair A D)= if their =cars= are the same A and their =cdrs= are the same D. Here =A= and =D= stand for any type.
 
-* Normal Forms of Types
+** Normal Forms of Types
 Every expression that is a type has a normal form, which is the most direct way of writing that type. If two expressions are the same type, then they have identical normal forms, and if two types have identical normal forms, then they are the same type.
 
-* Claims before Definitions
+** Claims before Definitions
 Using =define= to associate a name with an expression requires that the expression's type has previously been associated with the name using =claim=.
 
-* Values
+** Values
 An expression with a constructor at the top is called a =value.=
 
-* Values and Normal Forms
+** Values and Normal Forms
 Not every value is in normal form. This is because the arguments to a constructor need not be normal. Each expression has only one normal form, but it is sometimes possible to write it as a value in more than one way.
 
-* Evaluation
+** Evaluation
 Finding a value that is the same as some starting expression is called =evaluation=.
 
-* Everything is an Expression
+** Everything is an Expression
 In Pie, values are also expressions. Evaluation in Pie finds an expression, not some other kind of thing.
 
-* A normal expression has no remaining opportunities for evaluation.
+** A normal expression has no remaining opportunities for evaluation.
 
-* The Commandment of =zero=
+** The Commandment of =zero=
 =zero= is the same =Nat= as =zero=.
 
-* The Commandment of =add1=
+** The Commandment of =add1=
 If =n= is the same =Nat= as =k=, then =(add1 n)= is the same =Nat= as =(add1 k)=.
 
-* Definitions are Forever
+** Definitions are Forever
 Once a name has been claimed, it cannot be reclaimed, and once a name has been defined, it cannot be redefined.
+
+* Chapter 2
+
+** Constructors and Eliminators
+Constructors build values, and eliminators take apart values built by constructors.
+
+Values contain information, eliminators allow that information to be used.
+
+** Eliminating Functions
+Applying a function to arguments /is/ the eliminator for functions.
+
+** Substitution
+Consistently replacing a variable with an expression is sometimes called /substitution/.
+** The Initial Law of Application
+If =f= is an =(-> Y X)=
+and =arg= is a =Y=
+then =(f arg)= is an =X=
+** The Initial First Commandment of Lambda
+Two lambda-expressions that expect the same number of arguments are the same if their bodies are the same after consistently renaming their variables (a.k.a. alpha-conversion)
+** The Initial Second Commandment of Lambda
+If =f= is an =(-> Y X)=,
+then =f= is the same =(-> Y X)= as =(lambda (y) (f y))=
+as long as =y= does not occur in =f=.
+** The Law of Renaming Variables
+Consistently renaming variables can't change the meaning of anything.
+** Neutral expressions
+Expressions that are not values (do not have a constructor at the top) and cannot /yet/ be evaluated due to a variable are called *neutral*
+** The Commandment of Neutral Expressions
+Neutral expressions that are written identically are the same, /no matter their type/.
+
+This is because we don't know their value, but we know that substitution rules mean that variables can only be substituted consistently, so a variable will always resolve to the same value every time.
+** The Law and Commandment of =define=
+Following =(claim name X)= and =(define name expr)=,
+if =expr= is an =X=,
+then =name= is an =X=,
+and =name= is the same =X= as =expr=.
+** The Second Commandment of =cons=
+If =p= is a =(Pair A D)=,
+then it is the same =(Pair A D)= as =(cons (car p) (cdr p))=.
+** Names in Definitions
+In Pie, only names that are not already used, whether for constructors, eliminators, or previous definitions, can be used with =claim= or =define=.
+** Dim Names
+Unused names are written dimly, but they do need to be there.
+** The Law of =which-Nat=
+If =target= is a =Nat=, =base= is an =X=, and =step= is an =(-> Nat X)=
+then =(which-Nat target base step)= is an =X=
+** The First Commandment of =which-Nat=
+If =(which-Nat zero base step)= is an =X=,
+then it is the same =X= as =base=.
+** The Second Commandment of =which-Nat=
+If =(which-Nat (add1 n) base step)= is an =X=,
+then it is the same =X= as =(step n)=.
