@@ -104,3 +104,13 @@ then it is the same =X= as =base=.
 ** The Second Commandment of =which-Nat=
 If =(which-Nat (add1 n) base step)= is an =X=,
 then it is the same =X= as =(step n)=.
+** Recursion is not an option
+In Pi, every expression must have a value. Some recursive definitions make it possible to write expressions without a value.
+
+For example, =(claim forever (-> Nat Atom))= and =(define forever (lambda (and-ever) (forever and-ever)))= 
+** U is short for =universe=, because it describes all the types (except for itself).
+** Type Values
+An expression that is described by a type is a value when it has a constructor at its top.
+Similarly, an expression that is a type is a value when it has a type constructor at its top.
+** Every U is a Type
+Every expression described by U is a type, but not every type is described by U.
