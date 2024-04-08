@@ -114,3 +114,5 @@ An expression that is described by a type is a value when it has a constructor a
 Similarly, an expression that is a type is a value when it has a type constructor at its top.
 ** Every U is a Type
 Every expression described by U is a type, but not every type is described by U.
+** Definitions Are Unnecessary
+Everything can be done without definitions, but they do improve understanding.
